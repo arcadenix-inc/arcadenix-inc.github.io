@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sudoku Vui Vẻ 5x5 🎮</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  :root {
+    --c1: #FF6B9D;  /* hồng */
+    --c2: #FFC93C;  /* vàng */
+    --c3: #6BCB77;  /* xanh lá */
+    --c4: #4D96FF;  /* xanh dương */
+    --c5: #C780FA;  /* tím */
+    --bg-1: #FFE5EC;
+    --bg-2: #FFF6E0;
+    --ink: #2D2D44;
+    --paper: #FFFDF7;
+    --line: #2D2D44;
+  }
+
+  html, body { height: 100%; }
+  body {
+    font-family: 'Nunito', sans-serif;
+    background:
+      radial-gradient(circle at 15% 20%, #FFD6E8 0%, transparent 40%),
+      radial-gradient(circle at 85% 15%, #FFF1B8 0%, transparent 40%),
+      radial-gradient(circle at 80% 85%, #C9F0CC 0%, transparent 45%),
+      radial-gradient(circle at 10% 90%, #C9E4FF 0%, transparent 40%),
+      var(--bg-2);
+    background-attachment: fixed;
+    color: var(--ink);
+    min-height: 100vh;
+    overflow-x: hidden;
+    padding: 16px 12px 32px;
+  }
+
+  /* mây trang trí */
+  .cloud {
+    position: fixed; pointer-events: none; opacity: 0.5;
+    font-size: 40px; animation: float 20s linear infinite;
+  }
+  .cloud:nth-child(1) { top: 8%; left: -10%; animation-duration: 35s; }
+  .cloud:nth-child(2) { top: 30%; left: -10%; animation-duration: 45s; animation-delay: -10s; font-size: 28px; }
+  .cloud:nth-child(3) { top: 60%; left: -10%; animation-duration: 55s; animation-delay: -25s; font-size: 50px; }
+  @keyframes float { to { transform: translateX(120vw); } }
+
+  .wrap {
+    max-width: 480px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 18px;
+  }
+  h1 {
+    font-family: 'Bagel Fat One', cursive;
+    font-size: clamp(34px, 9vw, 44px);
+    line-height: 1;
+    letter-spacing: 1px;
+    color: var(--ink);
+    text-shadow:
+      3px 3px 0 var(--c2),
+      6px 6px 0 var(--c1);
+    transform: rotate(-2deg);
+    display: inline-block;
+    margin-bottom: 6px;
+  }
+  .subtitle {
+    font-weight: 800;
+    font-size: 14px;
+    color: #6b6b8a;
+    letter-spacing: 0.5px;
+  }
+
+  .stats {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--paper);
+    border: 3px solid var(--ink);
+    border-radius: 18px;
+    padding: 10px 14px;
+    margin-bottom: 14px;
+    box-shadow: 4px 4px 0 var(--ink);
+    font-weight: 800;
+  }
+  .stat { display: flex; align-items: center; gap: 6px; font-size: 15px; }
+  .stat .icon { font-size: 20px; }
+  .stat .value { font-family: 'Bagel Fat One', cursive; font-size: 18px; color: var(--c4); min-width: 22px; text-align: center; }
+  .stat#stars .value { color: var(--c2); }
+  .stat#timer .value { color: var(--c3); }
+
+  /* Bảng Sudoku */
+  .board {
+    background: var(--paper);
+    border: 4px solid var(--ink);
+    border-radius: 22px;
+    padding: 8px;
+    box-shadow: 6px 6px 0 var(--ink);
+    aspect-ratio: 1 / 1;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 4px;
+    margin-bottom: 16px;
+    position: relative;
+  }
+
+  .cell {
+    background: #fff;
+    border: 2px solid #d8d8e8;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Bagel Fat One', cursive;
+    font-size: clamp(22px, 6.5vw, 32px);
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.15s ease;
+    position: relative;
+    aspect-ratio: 1 / 1;
+  }
+  .cell:active { transform: scale(0.94); }
+
+  .cell.fixed {
+    background: #f3f0ff;
+    cursor: default;
+    color: var(--ink);
+  }
+  .cell.fixed:active { transform: none; }
+
+  .cell.selected {
+    background: #FFF1B8;
+    border-color: var(--c2);
+    box-shadow: 0 0 0 3px var(--c2);
+    transform: scale(1.05);
+    z-index: 2;
+  }
+  .cell.same-num {
+    background: #FFE5F0;
+    border-color: var(--c1);
+  }
+  .cell.error {
+    color: #E63946;
+    animation: shake 0.4s;
+  }
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-4px); }
+    75% { transform: translateX(4px); }
+  }
+
+  .cell.pop {
+    animation: pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  @keyframes pop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.25) rotate(-5deg); }
+    100% { transform: scale(1); }
+  }
+
+  /* Màu cho từng số */
+  .cell[data-num="1"]:not(.fixed) { color: var(--c1); }
+  .cell[data-num="2"]:not(.fixed) { color: var(--c2); }
+  .cell[data-num="3"]:not(.fixed) { color: var(--c3); }
+  .cell[data-num="4"]:not(.fixed) { color: var(--c4); }
+  .cell[data-num="5"]:not(.fixed) { color: var(--c5); }
+
+  /* Nút số */
+  .numpad {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .num-btn {
+    aspect-ratio: 1 / 1;
+    border: 3px solid var(--ink);
+    border-radius: 16px;
+    font-family: 'Bagel Fat One', cursive;
+    font-size: clamp(24px, 7vw, 32px);
+    cursor: pointer;
+    transition: all 0.1s ease;
+    box-shadow: 3px 3px 0 var(--ink);
+    background: #fff;
+  }
+  .num-btn:active {
+    transform: translate(3px, 3px);
+    box-shadow: 0 0 0 var(--ink);
+  }
+  .num-btn[data-n="1"] { background: #FFD6E5; color: var(--c1); }
+  .num-btn[data-n="2"] { background: #FFF1B8; color: #C99700; }
+  .num-btn[data-n="3"] { background: #C9F0CC; color: #2E8B3D; }
+  .num-btn[data-n="4"] { background: #C9E4FF; color: var(--c4); }
+  .num-btn[data-n="5"] { background: #E8D6FF; color: var(--c5); }
+  .num-btn.done {
+    opacity: 0.35;
+    text-decoration: line-through;
+  }
+
+  /* Hàng nút công cụ */
+  .tools {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .tool-btn {
+    border: 3px solid var(--ink);
+    border-radius: 16px;
+    padding: 12px 8px;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 900;
+    font-size: 14px;
+    cursor: pointer;
+    background: #fff;
+    box-shadow: 3px 3px 0 var(--ink);
+    transition: all 0.1s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+  }
+  .tool-btn:active {
+    transform: translate(3px, 3px);
+    box-shadow: 0 0 0 var(--ink);
+  }
+  .tool-btn .ico { font-size: 18px; }
+  #btnErase { background: #FFE5E5; }
+  #btnHint { background: #FFF1B8; }
+  #btnNew { background: #C9F0CC; }
+
+  /* Pháo hoa khi thắng */
+  .win-overlay {
+    position: fixed; inset: 0;
+    background: rgba(45, 45, 68, 0.85);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 20px;
+  }
+  .win-overlay.show { display: flex; animation: fadeIn 0.4s; }
+  @keyframes fadeIn { from { opacity: 0; } }
+
+  .win-card {
+    background: var(--paper);
+    border: 4px solid var(--ink);
+    border-radius: 24px;
+    padding: 28px 24px;
+    box-shadow: 8px 8px 0 var(--ink);
+    text-align: center;
+    max-width: 320px;
+    width: 100%;
+    animation: bounceIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  @keyframes bounceIn {
+    0% { transform: scale(0.3) rotate(-15deg); opacity: 0; }
+    100% { transform: scale(1) rotate(0); opacity: 1; }
+  }
+  .win-emoji { font-size: 60px; margin-bottom: 8px; }
+  .win-title {
+    font-family: 'Bagel Fat One', cursive;
+    font-size: 32px;
+    color: var(--c1);
+    text-shadow: 2px 2px 0 var(--c2);
+    margin-bottom: 4px;
+  }
+  .win-msg { font-size: 15px; font-weight: 800; color: #6b6b8a; margin-bottom: 14px; }
+  .win-stats {
+    display: flex; justify-content: space-around;
+    background: #FFF1B8; border-radius: 14px; padding: 10px;
+    margin-bottom: 18px; border: 2px dashed var(--c2);
+  }
+  .win-stats div { font-weight: 900; font-size: 14px; }
+  .win-stats span { display: block; font-family: 'Bagel Fat One', cursive; font-size: 22px; color: var(--c4); }
+  .win-btn {
+    background: var(--c1);
+    color: white;
+    border: 3px solid var(--ink);
+    border-radius: 16px;
+    padding: 12px 24px;
+    font-family: 'Bagel Fat One', cursive;
+    font-size: 20px;
+    cursor: pointer;
+    box-shadow: 3px 3px 0 var(--ink);
+    width: 100%;
+  }
+  .win-btn:active { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--ink); }
+
+  .confetti {
+    position: fixed;
+    width: 10px; height: 10px;
+    pointer-events: none;
+    z-index: 99;
+  }
+
+  /* Hướng dẫn ngắn */
+  .hint-bar {
+    text-align: center;
+    font-size: 13px;
+    font-weight: 700;
+    color: #6b6b8a;
+    margin-top: 12px;
+    padding: 8px;
+  }
+  .hint-bar b { color: var(--c1); }
+</style>
+</head>
+<body>
+
+<div class="cloud">☁️</div>
+<div class="cloud">⭐</div>
+<div class="cloud">🌈</div>
+
+<div class="wrap">
+  <header>
+    <h1>Sudoku Vui!</h1>
+    <div class="subtitle">🎮 Trò chơi 5×5 cho bé 🎮</div>
+  </header>
+
+  <div class="stats">
+    <div class="stat" id="timer">
+      <span class="icon">⏱️</span>
+      <span class="value" id="time">00:00</span>
+    </div>
+    <div class="stat" id="stars">
+      <span class="icon">⭐</span>
+      <span class="value" id="starCount">0</span>
+    </div>
+    <div class="stat">
+      <span class="icon">❤️</span>
+      <span class="value" id="lives">3</span>
+    </div>
+  </div>
+
+  <div class="board" id="board"></div>
+
+  <div class="numpad" id="numpad">
+    <button class="num-btn" data-n="1">1</button>
+    <button class="num-btn" data-n="2">2</button>
+    <button class="num-btn" data-n="3">3</button>
+    <button class="num-btn" data-n="4">4</button>
+    <button class="num-btn" data-n="5">5</button>
+  </div>
+
+  <div class="tools">
+    <button class="tool-btn" id="btnErase"><span class="ico">🧽</span>Xóa</button>
+    <button class="tool-btn" id="btnNew"><span class="ico">🔄</span>Ván mới</button>
+  </div>
+
+  <div class="hint-bar">
+    Mỗi hàng, mỗi cột có đủ <b>1, 2, 3, 4, 5</b> nhé! 🌟
+  </div>
+</div>
+
+<div class="win-overlay" id="winOverlay">
+  <div class="win-card">
+    <div class="win-emoji">🎉</div>
+    <div class="win-title">Hoan hô!</div>
+    <div class="win-msg">Bé giỏi quá! Đã giải xong rồi!</div>
+    <div class="win-stats">
+      <div>⏱️ Thời gian<span id="winTime">00:00</span></div>
+      <div>⭐ Sao<span id="winStars">0</span></div>
+    </div>
+    <button class="win-btn" id="winBtn">Chơi tiếp! 🚀</button>
+  </div>
+</div>
+
+<script>
+// ===== Sudoku 5x5 logic =====
+const SIZE = 5;
+
+// Tạo lưới hoàn chỉnh bằng cách hoán vị
+function generateSolution() {
+  // Bắt đầu với một lưới latin square hợp lệ
+  const base = [[1,2,3,4,5],[2,3,4,5,1],[3,4,5,1,2],[4,5,1,2,3],[5,1,2,3,4]];
+  // Hoán vị các số 1-5 ngẫu nhiên
+  const map = [1,2,3,4,5].sort(() => Math.random() - 0.5);
+  let grid = base.map(row => row.map(v => map[v-1]));
+  // Hoán vị các hàng
+  const rowOrder = [0,1,2,3,4].sort(() => Math.random() - 0.5);
+  grid = rowOrder.map(i => grid[i]);
+  // Hoán vị các cột
+  const colOrder = [0,1,2,3,4].sort(() => Math.random() - 0.5);
+  grid = grid.map(row => colOrder.map(i => row[i]));
+  return grid;
+}
+
+// Tạo puzzle bằng cách bỏ đi một số ô (easy: bỏ ít)
+function makePuzzle(solution, holes = 8) {
+  const puzzle = solution.map(r => r.slice());
+  let removed = 0;
+  while (removed < holes) {
+    const r = Math.floor(Math.random() * SIZE);
+    const c = Math.floor(Math.random() * SIZE);
+    if (puzzle[r][c] !== 0) {
+      puzzle[r][c] = 0;
+      removed++;
+    }
+  }
+  return puzzle;
+}
+
+// ===== State =====
+let solution = [];
+let puzzle = [];
+let current = [];
+let fixed = [];
+let selected = null;
+let stars = 0;
+let lives = 3;
+let timer = 0;
+let timerId = null;
+let gameOver = false;
+
+const boardEl = document.getElementById('board');
+const numpadEl = document.getElementById('numpad');
+const timeEl = document.getElementById('time');
+const starEl = document.getElementById('starCount');
+const livesEl = document.getElementById('lives');
+
+function startGame() {
+  solution = generateSolution();
+  puzzle = makePuzzle(solution, 8); // easy: chỉ bỏ 8 ô
+  current = puzzle.map(r => r.slice());
+  fixed = puzzle.map(r => r.map(v => v !== 0));
+  selected = null;
+  stars = 0;
+  lives = 3;
+  timer = 0;
+  gameOver = false;
+  starEl.textContent = stars;
+  livesEl.textContent = '❤️'.repeat(lives) || '💔';
+  livesEl.textContent = lives;
+  updateTime();
+  if (timerId) clearInterval(timerId);
+  timerId = setInterval(() => { timer++; updateTime(); }, 1000);
+  renderBoard();
+  updateNumpad();
+}
+
+function updateTime() {
+  const m = String(Math.floor(timer / 60)).padStart(2, '0');
+  const s = String(timer % 60).padStart(2, '0');
+  timeEl.textContent = `${m}:${s}`;
+}
+
+function renderBoard() {
+  boardEl.innerHTML = '';
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      const v = current[r][c];
+      if (v) cell.dataset.num = v;
+      cell.textContent = v || '';
+      if (fixed[r][c]) cell.classList.add('fixed');
+      if (selected && selected.r === r && selected.c === c) cell.classList.add('selected');
+      if (selected && v && current[selected.r][selected.c] === v && v !== 0) {
+        cell.classList.add('same-num');
+      }
+      cell.addEventListener('click', () => selectCell(r, c));
+      boardEl.appendChild(cell);
+    }
+  }
+}
+
+function selectCell(r, c) {
+  if (gameOver) return;
+  if (fixed[r][c]) {
+    // Cho phép chọn ô cố định để highlight các số giống
+    selected = { r, c };
+  } else {
+    selected = { r, c };
+  }
+  renderBoard();
+}
+
+function placeNumber(n) {
+  if (!selected || gameOver) return;
+  const { r, c } = selected;
+  if (fixed[r][c]) return;
+
+  if (solution[r][c] === n) {
+    // Đúng!
+    current[r][c] = n;
+    stars++;
+    starEl.textContent = stars;
+    renderBoard();
+    // hiệu ứng pop
+    const idx = r * SIZE + c;
+    const cellEl = boardEl.children[idx];
+    cellEl.classList.add('pop');
+    setTimeout(() => cellEl.classList.remove('pop'), 400);
+    updateNumpad();
+    if (checkWin()) showWin();
+  } else {
+    // Sai!
+    lives--;
+    livesEl.textContent = lives;
+    const idx = r * SIZE + c;
+    const cellEl = boardEl.children[idx];
+    cellEl.textContent = n;
+    cellEl.dataset.num = n;
+    cellEl.classList.add('error');
+    setTimeout(() => {
+      cellEl.classList.remove('error');
+      cellEl.textContent = current[r][c] || '';
+      if (current[r][c]) cellEl.dataset.num = current[r][c];
+      else delete cellEl.dataset.num;
+    }, 500);
+    if (lives <= 0) {
+      gameOver = true;
+      clearInterval(timerId);
+      setTimeout(() => startGame(), 800);
+    }
+  }
+}
+
+function eraseNumber() {
+  if (!selected || gameOver) return;
+  const { r, c } = selected;
+  if (fixed[r][c]) return;
+  current[r][c] = 0;
+  renderBoard();
+  updateNumpad();
+}
+
+function updateNumpad() {
+  // Đếm số lần mỗi số đã được đặt
+  const counts = [0, 0, 0, 0, 0, 0];
+  for (let r = 0; r < SIZE; r++)
+    for (let c = 0; c < SIZE; c++)
+      if (current[r][c]) counts[current[r][c]]++;
+  document.querySelectorAll('.num-btn').forEach(btn => {
+    const n = parseInt(btn.dataset.n);
+    if (counts[n] >= SIZE) btn.classList.add('done');
+    else btn.classList.remove('done');
+  });
+}
+
+function checkWin() {
+  for (let r = 0; r < SIZE; r++)
+    for (let c = 0; c < SIZE; c++)
+      if (current[r][c] !== solution[r][c]) return false;
+  return true;
+}
+
+function showWin() {
+  gameOver = true;
+  clearInterval(timerId);
+  document.getElementById('winTime').textContent = timeEl.textContent;
+  document.getElementById('winStars').textContent = stars;
+  document.getElementById('winOverlay').classList.add('show');
+  // Pháo hoa
+  for (let i = 0; i < 40; i++) {
+    setTimeout(() => makeConfetti(), i * 30);
+  }
+}
+
+function makeConfetti() {
+  const colors = ['#FF6B9D', '#FFC93C', '#6BCB77', '#4D96FF', '#C780FA'];
+  const c = document.createElement('div');
+  c.className = 'confetti';
+  c.style.left = Math.random() * 100 + 'vw';
+  c.style.top = '-10px';
+  c.style.background = colors[Math.floor(Math.random() * colors.length)];
+  c.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+  c.style.transform = `rotate(${Math.random() * 360}deg)`;
+  document.body.appendChild(c);
+  const fall = c.animate([
+    { transform: c.style.transform + ' translateY(0)', opacity: 1 },
+    { transform: c.style.transform + ` translateY(110vh) rotate(${Math.random()*720}deg)`, opacity: 0 }
+  ], { duration: 2500 + Math.random() * 1500, easing: 'ease-in' });
+  fall.onfinish = () => c.remove();
+}
+
+// ===== Sự kiện =====
+document.querySelectorAll('.num-btn').forEach(btn => {
+  btn.addEventListener('click', () => placeNumber(parseInt(btn.dataset.n)));
+});
+document.getElementById('btnErase').addEventListener('click', eraseNumber);
+document.getElementById('btnNew').addEventListener('click', () => {
+  document.getElementById('winOverlay').classList.remove('show');
+  startGame();
+});
+document.getElementById('winBtn').addEventListener('click', () => {
+  document.getElementById('winOverlay').classList.remove('show');
+  startGame();
+});
+
+// Hỗ trợ bàn phím
+document.addEventListener('keydown', (e) => {
+  if (e.key >= '1' && e.key <= '5') placeNumber(parseInt(e.key));
+  else if (e.key === 'Backspace' || e.key === 'Delete' || e.key === '0') eraseNumber();
+});
+
+startGame();
+</script>
+</body>
+</html>
